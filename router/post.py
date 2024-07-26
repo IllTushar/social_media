@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from table.table import Post
 from engine.engine import Base, engine, SessionLocal
+from typing import List
+from model.Post import ResponseClass
+import base64
 
 router = APIRouter(prefix="/post", tags=['Create Post'])
 
@@ -42,3 +45,34 @@ async def create_post(user_id: str, file: UploadFile = File(...), captions: str 
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to upload image")
+
+
+@router.get("/get-all-post/{user_id}", status_code=status.HTTP_200_OK, response_model=List[ResponseClass])
+async def get_all_post(user_id: int, db: Session = Depends(get_db)):
+    posts = db.query(Post).filter(Post.user_id == user_id).all()  # Use Post.user_id instead of Post.id
+
+    if not posts:
+        raise HTTPException(status_code=404, detail="Data is not found")
+
+    post_list: List[ResponseClass] = []
+    for post in posts:
+        images_str = ""
+        if isinstance(post.images, bytes):
+            images_str = base64.b64encode(post.images).decode('utf-8')  # Encode to base64 string
+        elif isinstance(post.images, list):
+            # Concatenate all images into one base64 string if list
+            images_str = ''.join(
+                base64.b64encode(img).decode('utf-8') if isinstance(img, bytes) else img for img in post.images)
+
+        post_dict = post.__dict__
+
+        # Ensure id is a string
+        post_dict['id'] = str(post_dict.get('id', ''))
+
+        # Ensure captions is a string
+        post_dict['captions'] = post_dict.get('captions', '') or ''  # Default to empty string if None
+
+        post_dict['images'] = images_str
+        post_list.append(ResponseClass(**post_dict))
+
+    return post_list

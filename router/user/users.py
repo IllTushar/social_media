@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from model.UserModel import CreateUser
+from model.UserModel import CreateUser, ResponseUser
 from engine.engine import Base, engine, SessionLocal
-from typing import Annotated
+from typing import Annotated, List
 from passlib.context import CryptContext
 from table.table import UserTable
 from datetime import date
@@ -60,3 +60,18 @@ async def create_user(request: CreateUser, db: db_Session):
                             detail="Only users born after 2007 can create an account!")
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Check your credentials!")
+
+
+@router.get("/get-all-user", status_code=status.HTTP_200_OK, response_model=List[ResponseUser])
+async def get_all_users(db: db_Session):
+    users = db.query(UserTable).all()
+    if not users:
+        raise HTTPException(status_code=404, detail="Data is not found!!")
+
+    users_list: List[ResponseUser] = []
+    for user in users:
+        user_dict = user.__dict__
+        user_dict['DOB'] = user.DOB  # Ensure DOB is properly set if it's a datetime.date instance
+        users_list.append(ResponseUser(**user_dict))
+
+    return users_list  # Return the list directly

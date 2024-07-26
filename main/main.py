@@ -1,6 +1,5 @@
 from fastapi import FastAPI
-from router.user import users
-from router import post, comments
+from router import post, comments, like, users, follower
 
 app = FastAPI()
 
@@ -12,3 +11,9 @@ app.include_router(post.router)
 
 # Comments
 app.include_router(comments.router)
+
+# Like
+app.include_router(like.router)
+
+# Follower
+app.include_router(follower.router)
